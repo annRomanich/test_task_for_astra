@@ -1,0 +1,10 @@
+Package: tog
+Version: 1.0
+Section: unknown
+Priority: optional
+Depends: libc6, libgtk-3-0
+Architecture: amd64
+Essential: no
+Installed-Size: 28
+Maintainer: Anna Romanova <falsetheory@mail.ru>
+Description: Test task for Astra. <br>Lazy tree with checkboxses.
