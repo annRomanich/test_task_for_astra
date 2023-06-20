@@ -107,18 +107,10 @@ void append_next(
 	int start,
 	int stop
 ) {
-	struct Node new_nd = node_new(tree_store, NULL, text, start, stop);
-	Node *new_node = (Node*) malloc(sizeof(Node));
-	new_node = &new_nd;
-	if (node->next == NULL)
-		node->next = new_node;
-	else {
-		struct Node* next = node->next;
-		while (next->next)
-			next = next->next;
-		next->next = (Node*) malloc(sizeof(Node));
-		next->next = new_node;
-	}
+	struct Node* next = node->next;
+	while (next->next)
+		next = next->next;
+	next->next = node_new_p(tree_store, NULL, text, start, stop);
 }
 
 struct Node top_node;
@@ -190,7 +182,7 @@ struct Node parse_level(
 	int stop)
 {
 	FILE* file = fopen(FILE_PATH, "r");
-	fseek(file, 0, SEEK_END);
+	// fseek(file, 0, SEEK_END);
 	fseek(file, start, SEEK_SET);
 	long file_size = stop - start;
 
@@ -200,17 +192,10 @@ struct Node parse_level(
 	char* name_buff = (char*)malloc(MAX_NAME_LEN);
 	char* value_buff = (char*)malloc(MAX_NAME_LEN);
 
-	// brackets counter
-	int counter = 0;
-	int 
-		name_counter = 0,
-		value_counter = 0;
-	bool 
-		name = false,
-		value = false;
-	int 
-		child_start, 
-		child_stop;
+	int brackets_counter = 0;
+	int name_counter = 0, value_counter = 0;
+	bool is_name = false, is_value = false;
+	int child_start, child_stop;
 
 	enum Parsing_mode mode = NAME_MODE;
 
@@ -236,18 +221,18 @@ struct Node parse_level(
 			// printf("NAME_MODE\n");
 		
 			if(symbol == '"'){	
-				name = !name;
+				is_name = !is_name;
 				// printf("test 7\n");
 
 				// means end of a name
-				if (name == false) {
+				if (is_name == false) {
 					printf("Name: ");
 					for (int j=0; j < name_counter; j++)
 						printf("%c", name_buff[j]);
 					printf("\n");
 				}
 			}
-			else if(name){
+			else if(is_name){
 				// printf("test 8\n");
 				name_buff[name_counter] = symbol;
 				name_counter++;
@@ -266,10 +251,10 @@ struct Node parse_level(
 				mode = CHILD_MODE;
 			} 
 			else if (symbol == '"') {
-				value = !value;
+				is_value = !is_value;
 
 				// means end of a name
-				if (value == false) {
+				if (is_value == false) {
 					printf("Value: ");
 					for (int j=0; j < value_counter; j++){
 						printf("%c", value_buff[j]);
@@ -277,14 +262,14 @@ struct Node parse_level(
 					printf("\n");
 					printf("%d %d\n", name_counter, value_counter);
 					char* str = (char*)malloc(name_counter+value_counter+3);
-					for (int j=0; j < name_counter; j++){
-						str[j] = name_buff[j];
-					}
+					memcpy(str, name_buff, name_counter);
 					str[name_counter] = ':';
 					str[name_counter+1] = ' ';
+
 					for (int j=0; j < value_counter; j++){
 						str[name_counter+j+2] = value_buff[j];
 					}
+
 					str[name_counter+2+value_counter] = '\0';
 					// printf("%s\n", value_buff);
 					if (node == NULL){
@@ -297,8 +282,8 @@ struct Node parse_level(
 							);
 							first_node_inited = true;
 							Node *new_node = (Node*) malloc(sizeof(Node));
-							new_node = &first_node;
-							current_node = new_node;
+							current_node = &first_node; 
+
 							// printf("test 1");
 						}
 						else {
@@ -315,11 +300,11 @@ struct Node parse_level(
 					value_counter = 0;
 				} 
 			}	
-			else if(value){
+			else if(is_value){
 				value_buff[value_counter] = symbol;
 				value_counter++;
 			}
-			if(symbol == ',' && value == false)
+			if(symbol == ',' && is_value == false)
 			{
 				mode = NAME_MODE;
 			}	
@@ -328,18 +313,18 @@ struct Node parse_level(
 		{
 			// printf("CHILD_MODE\n");	
 			if (symbol == '{') {
-				if (counter == 0){
+				if (brackets_counter == 0){
 					if (node)
 						printf("child: %d", i+node->start);
 					else
 						printf("child: %d", i);
 					child_start = i;
 				}
-				counter++;
+				brackets_counter++;
 			}
 			if (symbol == '}'){
-				counter--;
-				if (counter == 0){
+				brackets_counter--;
+				if (brackets_counter == 0){
 					child_stop = i;
 					if (node)
 						printf("-%d\n", i+node->start);
@@ -347,9 +332,7 @@ struct Node parse_level(
 						printf("-%d\n", i);
 					mode = NAME_MODE;
 					char* str = (char*)malloc(name_counter+1);
-					for (int j=0; j < name_counter; j++){
-						str[j] = name_buff[j];
-					}
+					memcpy(str, name_buff, name_counter);
 					str[name_counter] = '\0';
 					if (node == NULL){
 						if (!first_node_inited){
